@@ -847,7 +847,7 @@ function selGrav(g) {
 // ─────────────────────────────────────────────────────────────────────────────
 async function analyzePhoto() {
   const zone = document.getElementById('zone-input').value.trim();
-  if (!imgB64 || !zone || !apiKey) return;
+  if (!imgB64 || !zone) return;
 
   document.getElementById('analyze-btn').disabled = true;
   document.getElementById('loading-indicator').style.display = 'block';
