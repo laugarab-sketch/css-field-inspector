@@ -859,6 +859,9 @@ async function analyzePhoto() {
   document.getElementById('analyze-btn').disabled = true;
   document.getElementById('loading-indicator').style.display = 'block';
   document.getElementById('result-preview').style.display = 'none';
+  document.getElementById('result-preview').style.borderColor = '';
+  document.querySelector('#result-preview .result-tag').textContent = 'Análisis completado';
+  document.querySelector('#result-preview .result-tag').style.background = '';
 
   try {
     const compressed = await compressImage(imgB64, imgMime);
@@ -880,6 +883,7 @@ async function analyzePhoto() {
     document.getElementById('loading-indicator').style.display = 'none';
 
     if (!text || text.trim() === 'SIN_DEFICIENCIAS') {
+      analysis = null;
       showToast('Sin deficiencias detectadas');
       document.getElementById('analyze-btn').disabled = false;
       return;
@@ -1000,7 +1004,7 @@ async function downloadDocx() {
     URL.revokeObjectURL(url);
     showToast('✓ Descargando .docx');
   } catch (err) {
-    showToast('Error generando documento');
+    showToast(err.message || 'Error generando documento');
     console.error(err);
   }
 }
