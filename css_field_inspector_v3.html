@@ -905,8 +905,9 @@ async function addToReport() {
   const zone = document.getElementById('zone-input').value.trim();
   if (!analysis || !imgB64 || !zone || !visitId) return;
 
+  const savedImg = await compressImage(imgB64, imgMime);
   const item = { visitId, zone, analysis, gravedad: gravity,
-                 imageBase64: imgB64, mime: imgMime,
+                 imageBase64: savedImg, mime: 'image/jpeg',
                  createdAt: new Date().toISOString() };
   const id   = await dbAdd('items', item);
   item.id    = id;
@@ -1088,7 +1089,10 @@ async function driveUpload(tok, name, mime, bytes, parentId) {
   const r = await fetch(`${DRIVE_UPLOAD_API}/files?uploadType=multipart&fields=id`, {
     method: 'POST', headers: { Authorization: `Bearer ${tok}` }, body: form
   });
-  if (!r.ok) throw new Error(`Upload ${r.status}`);
+  if (!r.ok) {
+    const errBody = await r.text();
+    throw new Error(`Upload ${r.status}: ${errBody.substring(0, 300)}`);
+  }
   return (await r.json()).id;
 }
 
