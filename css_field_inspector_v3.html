@@ -451,7 +451,7 @@ input[type="file"] { display: none; }
 const DRIVE_API        = 'https://www.googleapis.com/drive/v3';
 const DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
 const ROOT_FOLDER      = 'CSS Field Inspector';
-const MODEL            = 'claude-sonnet-4-20250514';
+const MODEL            = 'claude-3-5-sonnet-20241022';
 
 const GRAV = {
   normal:    'Normal',
@@ -889,7 +889,7 @@ async function analyzePhoto() {
   } catch (err) {
     document.getElementById('loading-indicator').style.display = 'none';
     document.getElementById('analyze-btn').disabled = false;
-    showToast('Error de conexión');
+    showToast('Error: ' + (err.message || 'conexión'));
     console.error(err);
   }
 }
