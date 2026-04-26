@@ -4,6 +4,33 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>CSS · Field Inspector</title>
+
+<!-- ── SEGURIDAD ── -->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src  'self' 'unsafe-inline' https://accounts.google.com;
+  style-src   'self' 'unsafe-inline' https://fonts.googleapis.com;
+  font-src    https://fonts.gstatic.com;
+  img-src     'self' data: blob:;
+  connect-src https://css-inspector-proxy.laugarab.workers.dev
+              https://www.googleapis.com
+              https://accounts.google.com;
+  frame-src   'none';
+  object-src  'none';
+  base-uri    'self';
+  form-action 'none';
+">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+
+<!-- ── PWA ── -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#f0a500">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CSS Inspector">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
 
@@ -261,6 +288,7 @@ input[type="file"] { display: none; }
       <div id="header-sub">Coordinación Seguridad y Salud</div>
     </div>
     <button onclick="resetConfig()" style="margin-left:auto;background:none;border:1px solid var(--border2);border-radius:3px;color:var(--text3);font-family:var(--mono);font-size:9px;padding:4px 8px;cursor:pointer;letter-spacing:0.06em;flex-shrink:0;">⚙ Config</button>
+    <button id="install-btn" onclick="installApp()" style="display:none;background:var(--accent);border:none;border-radius:3px;color:var(--bg);font-family:var(--mono);font-size:9px;font-weight:600;padding:4px 8px;cursor:pointer;letter-spacing:0.06em;flex-shrink:0;align-items:center;gap:4px;">⬇ Instalar</button>
     <div id="header-count">0</div>
   </div>
 
@@ -721,7 +749,13 @@ function fmtDate(iso) {
   const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`;
 }
 function esc(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g,  '&amp;')
+    .replace(/</g,  '&lt;')
+    .replace(/>/g,  '&gt;')
+    .replace(/"/g,  '&quot;')
+    .replace(/'/g,  '&#39;');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -991,16 +1025,21 @@ function renderReport() {
   empty.style.display = 'none';
 
   list.innerHTML = items.map((item, i) => {
+    const mime = esc(item.mime || 'image/jpeg');
     const thumbHtml = item.imageBase64
-      ? `<img class="ritem-thumb" src="data:${item.mime};base64,${item.imageBase64}" alt="" onclick="openPhoto('data:${item.mime};base64,${item.imageBase64}')" style="cursor:zoom-in">`
+      ? `<img class="ritem-thumb" src="data:${mime};base64,${item.imageBase64}"
+             alt="Foto deficiencia ${i+1}"
+             data-item-id="${item.id}"
+             style="cursor:zoom-in"
+             onclick="openPhotoById(${item.id})">`
       : `<div class="ritem-thumb" style="display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--text3);font-family:var(--mono)">SIN<br>FOTO</div>`;
     return `
     <div class="ritem">
       <div class="ritem-head">
         <span class="ritem-num">DEF-${String(i+1).padStart(2,'0')}</span>
         <span class="ritem-zone">${esc(item.zone)}</span>
-        <span class="ritem-grav g-${item.gravedad}">${GRAV[item.gravedad]}</span>
-        <button class="ritem-del" onclick="delItem(${item.id})">×</button>
+        <span class="ritem-grav g-${esc(item.gravedad)}">${esc(GRAV[item.gravedad] || item.gravedad)}</span>
+        <button class="ritem-del" onclick="delItem(${Number(item.id)})">×</button>
       </div>
       <div class="ritem-body">
         ${thumbHtml}
@@ -1469,13 +1508,18 @@ async function addManually() {
 // ─────────────────────────────────────────────────────────────────────────────
 // PHOTO LIGHTBOX
 // ─────────────────────────────────────────────────────────────────────────────
-function openPhoto(src) {
-  document.getElementById('lightbox-img').src = src;
+function openPhotoById(id) {
+  const item = items.find(x => x.id === id);
+  if (!item?.imageBase64) return;
+  // Construir src desde datos en memoria — nunca desde el DOM
+  const mime = /^image\/(jpeg|png|gif|webp)$/.test(item.mime) ? item.mime : 'image/jpeg';
+  document.getElementById('lightbox-img').src = `data:${mime};base64,${item.imageBase64}`;
   document.getElementById('photo-lightbox').classList.add('open');
 }
 function closePhoto() {
   document.getElementById('photo-lightbox').classList.remove('open');
-  document.getElementById('lightbox-img').src = '';
+  // Limpiar src después de la transición para liberar memoria
+  setTimeout(() => { document.getElementById('lightbox-img').src = ''; }, 300);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1513,6 +1557,51 @@ async function init() {
 }
 
 init();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PWA — Service Worker + Install prompt
+// ─────────────────────────────────────────────────────────────────────────────
+let _deferredInstall = null;
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js', { scope: './' })
+      .then(reg => {
+        // Si hay una nueva versión esperando, notificar al usuario
+        reg.addEventListener('updatefound', () => {
+          const newSW = reg.installing;
+          newSW.addEventListener('statechange', () => {
+            if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+              showToast('Nueva versión disponible — recarga para actualizar');
+            }
+          });
+        });
+      })
+      .catch(err => console.warn('SW registro fallido:', err));
+  });
+}
+
+// Capturar el evento de instalación para mostrar botón
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  _deferredInstall = e;
+  const btn = document.getElementById('install-btn');
+  if (btn) btn.style.display = 'flex';
+});
+
+window.addEventListener('appinstalled', () => {
+  _deferredInstall = null;
+  const btn = document.getElementById('install-btn');
+  if (btn) btn.style.display = 'none';
+  showToast('✓ App instalada en pantalla de inicio');
+});
+
+async function installApp() {
+  if (!_deferredInstall) return;
+  _deferredInstall.prompt();
+  const { outcome } = await _deferredInstall.userChoice;
+  if (outcome === 'accepted') _deferredInstall = null;
+}
 </script>
 </body>
 </html>

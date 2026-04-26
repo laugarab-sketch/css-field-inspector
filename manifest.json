@@ -1,0 +1,16 @@
+{
+  "name": "CSS Field Inspector",
+  "short_name": "CSS Inspector",
+  "description": "Coordinación de Seguridad y Salud — inspección en campo",
+  "start_url": "./css_field_inspector_v3.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0c0f",
+  "theme_color": "#f0a500",
+  "lang": "es",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
