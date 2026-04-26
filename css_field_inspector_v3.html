@@ -872,15 +872,14 @@ async function analyzePhoto() {
     const text = data.content?.find(b => b.type === 'text')?.text || '';
     document.getElementById('loading-indicator').style.display = 'none';
 
-    if (!text || text.trim() === 'SIN_DEFICIENCIAS') {
-      showToast('Sin deficiencias detectadas');
-      document.getElementById('analyze-btn').disabled = false;
-      return;
-    }
-
-    analysis = text;
-    document.getElementById('result-text-preview').textContent = text;
+    // DEBUG — mostrar respuesta raw
+    document.getElementById('result-text-preview').textContent =
+      'HTTP: ' + r.status + '\n' +
+      'TEXT: [' + text + ']\n\n' +
+      'RAW: ' + JSON.stringify(data).substring(0, 400);
     document.getElementById('result-preview').style.display = 'block';
+    document.getElementById('add-btn').style.display = 'none';
+    return; // debug temporal
 
   } catch (err) {
     document.getElementById('loading-indicator').style.display = 'none';
