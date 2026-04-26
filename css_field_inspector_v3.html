@@ -445,7 +445,7 @@ input[type="file"] { display: none; }
 const DRIVE_API        = 'https://www.googleapis.com/drive/v3';
 const DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
 const ROOT_FOLDER      = 'CSS Field Inspector';
-const MODEL            = 'claude-3-5-sonnet-20241022';
+const MODEL            = 'claude-sonnet-4-5';
 
 const GRAV = {
   normal:    'Normal',
@@ -872,14 +872,16 @@ async function analyzePhoto() {
     const text = data.content?.find(b => b.type === 'text')?.text || '';
     document.getElementById('loading-indicator').style.display = 'none';
 
-    // DEBUG — mostrar respuesta raw
-    document.getElementById('result-text-preview').textContent =
-      'HTTP: ' + r.status + '\n' +
-      'TEXT: [' + text + ']\n\n' +
-      'RAW: ' + JSON.stringify(data).substring(0, 400);
+    if (!text || text.trim() === 'SIN_DEFICIENCIAS') {
+      showToast('Sin deficiencias detectadas');
+      document.getElementById('analyze-btn').disabled = false;
+      return;
+    }
+
+    analysis = text;
+    document.getElementById('result-text-preview').textContent = text;
     document.getElementById('result-preview').style.display = 'block';
-    document.getElementById('add-btn').style.display = 'none';
-    return; // debug temporal
+    document.getElementById('add-btn').style.display = 'block';
 
   } catch (err) {
     document.getElementById('loading-indicator').style.display = 'none';
