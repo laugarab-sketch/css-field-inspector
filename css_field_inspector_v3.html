@@ -129,7 +129,7 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
 
 #result-preview { display: none; background: var(--surface2); border: 1px solid var(--ok); border-radius: 6px; padding: 14px; }
 .result-tag { background: var(--ok); color: var(--bg); font-family: var(--mono); font-size: 9px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 7px; border-radius: 2px; display: inline-block; margin-bottom: 10px; }
-#result-text-preview { font-family: var(--sans); font-size: 12px; color: var(--text2); line-height: 1.6; max-height: 120px; overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent); mask-image: linear-gradient(to bottom, black 60%, transparent); }
+#result-text-preview { font-family: var(--sans); font-size: 12px; color: var(--text2); line-height: 1.6; white-space: pre-wrap; }
 #add-btn { width: 100%; background: var(--ok); border: none; border-radius: 4px; color: var(--bg); font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; padding: 12px; cursor: pointer; margin-top: 10px; }
 
 /* ── REPORT ── */
@@ -151,10 +151,16 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
 .ritem-thumb { width: 64px; height: 64px; object-fit: cover; border-radius: 3px; flex-shrink: 0; background: var(--surface3); }
 .ritem-text  { font-family: var(--sans); font-size: 11px; color: var(--text2); line-height: 1.55; flex: 1; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; }
 
-/* ── EXPORT BAR ── */
-#export-bar { padding: 12px 16px; background: var(--surface); border-top: 1px solid var(--border); flex-shrink: 0; display: none; gap: 8px; flex-direction: column; }
+/* ── EXPORT BAR (capture tab) ── */
+#export-bar { padding: 10px 16px; background: var(--surface); border-top: 1px solid var(--border); flex-shrink: 0; display: none; align-items: center; gap: 10px; }
 #export-bar.visible { display: flex; }
-.export-info { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.06em; text-align: center; }
+.export-info { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.06em; flex: 1; }
+#export-bar-goto { background: var(--accent); border: none; border-radius: 3px; color: var(--bg); font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 7px 12px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+
+/* ── REPORT FOOTER ── */
+#report-footer { padding: 12px 16px; background: var(--surface); border-top: 1px solid var(--border); flex-shrink: 0; display: none; flex-direction: column; gap: 8px; }
+#report-footer.visible { display: flex; }
+.report-summary { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.06em; text-align: center; padding: 4px 0; }
 #drive-btn    { width: 100%; background: var(--blue); border: none; border-radius: 4px; color: white; font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; padding: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
 #download-btn { width: 100%; background: var(--surface2); border: 1px solid var(--border2); border-radius: 4px; color: var(--text); font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; padding: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
 #download-btn:active { background: var(--surface3); }
@@ -356,9 +362,15 @@ input[type="file"] { display: none; }
       <div id="report-list"></div>
     </div><!-- /sub-report -->
 
-    <!-- EXPORT BAR -->
+    <!-- EXPORT BAR (visible en pestaña Captura cuando hay items) -->
     <div id="export-bar">
       <div class="export-info" id="export-info-text"></div>
+      <button id="export-bar-goto" onclick="switchTab('report')">Ver informe →</button>
+    </div>
+
+    <!-- REPORT FOOTER (visible en pestaña Informe cuando hay items) -->
+    <div id="report-footer">
+      <div class="report-summary" id="report-summary-text"></div>
       <button id="drive-btn" onclick="exportToDrive()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
           <path d="M6.28 3L1 12.36 6.28 21h11.44L23 12.36 17.72 3H6.28zm.84 2h9.76l4.24 7.36-4.24 7.64H7.12L2.88 12.36 7.12 5z"/>
@@ -965,15 +977,22 @@ async function delItem(id) {
 }
 
 function updateExportBar() {
-  const bar = document.getElementById('export-bar');
-  if (!items.length) { bar.classList.remove('visible'); return; }
-  bar.classList.add('visible');
+  const bar    = document.getElementById('export-bar');
+  const footer = document.getElementById('report-footer');
+  if (!items.length) {
+    bar.classList.remove('visible');
+    footer.classList.remove('visible');
+    return;
+  }
   const gr = items.filter(x => x.gravedad === 'grave').length;
   const mg = items.filter(x => x.gravedad === 'muygraves' || x.gravedad === 'paraliz').length;
   let info = `${items.length} deficiencia${items.length!==1?'s':''}`;
   if (gr) info += ` · ⚠ ${gr} grave${gr!==1?'s':''}`;
   if (mg) info += ` · ⛔ ${mg} muy grave${mg!==1?'s':''}`;
   document.getElementById('export-info-text').textContent = info;
+  document.getElementById('report-summary-text').textContent = info;
+  bar.classList.add('visible');
+  footer.classList.add('visible');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -984,6 +1003,11 @@ function switchTab(tab) {
     t.classList.toggle('active', ['capture','report'][i] === tab));
   document.getElementById('sub-capture').classList.toggle('active', tab === 'capture');
   document.getElementById('sub-report').classList.toggle('active',  tab === 'report');
+  // Mostrar export-bar en Captura, report-footer en Informe
+  if (items.length) {
+    document.getElementById('export-bar').classList.toggle('visible',    tab === 'capture');
+    document.getElementById('report-footer').classList.toggle('visible', tab === 'report');
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
