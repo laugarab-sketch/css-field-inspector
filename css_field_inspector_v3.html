@@ -433,18 +433,7 @@ input[type="file"] { display: none; }
 
 <div id="toast"></div>
 
-<script>
-(function loadDocx() {
-  var s = document.createElement('script');
-  s.src = 'https://cdn.jsdelivr.net/npm/docx@8.2.2/build/index.js';
-  s.onerror = function() {
-    var s2 = document.createElement('script');
-    s2.src = 'https://unpkg.com/docx@8.2.2/build/index.js';
-    document.head.appendChild(s2);
-  };
-  document.head.appendChild(s);
-})();
-</script>
+<script src="https://cdn.jsdelivr.net/npm/docx@8.2.2/build/index.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 
 <script>
@@ -1165,8 +1154,17 @@ function closeDriveProgress() {
 // ─────────────────────────────────────────────────────────────────────────────
 // DOCX GENERATION
 // ─────────────────────────────────────────────────────────────────────────────
+async function waitForDocx() {
+  if (window.docx) return;
+  for (let i = 0; i < 50; i++) {
+    await new Promise(r => setTimeout(r, 100));
+    if (window.docx) return;
+  }
+  throw new Error('Librería .docx no cargó — recarga la página e intenta de nuevo.');
+}
+
 async function buildDocx(date) {
-  if (!window.docx) throw new Error('Librería .docx no disponible — comprueba la conexión e intenta de nuevo.');
+  await waitForDocx();
   const { Document, Packer, Paragraph, TextRun, ImageRun,
           AlignmentType, LevelFormat, BorderStyle } = docx;
 
@@ -1260,7 +1258,7 @@ async function buildDocx(date) {
 }
 
 async function buildSeguimiento(rows) {
-  if (!window.docx) throw new Error('Librería .docx no disponible — comprueba la conexión e intenta de nuevo.');
+  await waitForDocx();
   const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType } = docx;
 
   const headers = ['Visita','Total','⚠ Graves','⛔ Muy graves','🛑 Paraliz.','Estado'];
