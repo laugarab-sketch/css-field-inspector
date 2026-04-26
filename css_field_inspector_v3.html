@@ -238,6 +238,7 @@ input[type="file"] { display: none; }
       <div id="header-logo">CSS · Field Inspector</div>
       <div id="header-sub">Coordinación Seguridad y Salud</div>
     </div>
+    <button onclick="resetConfig()" style="margin-left:auto;background:none;border:1px solid var(--border2);border-radius:3px;color:var(--text3);font-family:var(--mono);font-size:9px;padding:4px 8px;cursor:pointer;letter-spacing:0.06em;flex-shrink:0;">⚙ Config</button>
     <div id="header-count">0</div>
   </div>
 
@@ -413,14 +414,7 @@ input[type="file"] { display: none; }
 <div id="setup-overlay">
   <div id="setup-logo">CSS · Field Inspector</div>
   <div id="setup-title">Configuración inicial</div>
-  <div id="setup-desc">Introduce tus credenciales. Se guardarán únicamente en este dispositivo.</div>
-
-  <div class="sf">
-    <div class="sf-label">Anthropic API Key</div>
-    <div class="sf-hint">Consíguela en <strong style="color:var(--text2)">console.anthropic.com</strong> → API Keys</div>
-    <input class="sf-input" id="setup-apikey" type="password"
-           placeholder="sk-ant-…" autocomplete="off" oninput="checkSetup()">
-  </div>
+  <div id="setup-desc">Introduce tu Google Client ID para activar la exportación a Drive. Se guardará únicamente en este dispositivo.</div>
 
   <div class="sf">
     <div class="sf-label">Google OAuth Client ID</div>
@@ -554,19 +548,24 @@ const dbDel = (store, id) => new Promise((res, rej) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // SETUP
 // ─────────────────────────────────────────────────────────────────────────────
+function resetConfig() {
+  localStorage.removeItem('_cfi_ak');
+  localStorage.removeItem('_cfi_gc');
+  document.getElementById('setup-apikey').value = '';
+  document.getElementById('setup-clientid').value = '';
+  document.getElementById('setup-save').disabled = true;
+  document.getElementById('setup-overlay').classList.add('open');
+}
+
 function checkSetup() {
-  const k = document.getElementById('setup-apikey').value.trim();
   const c = document.getElementById('setup-clientid').value.trim();
-  document.getElementById('setup-save').disabled = !(k && c);
+  document.getElementById('setup-save').disabled = !c;
 }
 
 function saveSetup() {
-  const k = document.getElementById('setup-apikey').value.trim();
   const c = document.getElementById('setup-clientid').value.trim();
-  if (!k || !c) return;
-  localStorage.setItem('_cfi_ak', k);
+  if (!c) return;
   localStorage.setItem('_cfi_gc', c);
-  apiKey    = k;
   gClientId = c;
   document.getElementById('setup-overlay').classList.remove('open');
   initGAuth();
@@ -855,14 +854,9 @@ async function analyzePhoto() {
   document.getElementById('result-preview').style.display = 'none';
 
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
+    const r = await fetch('https://css-inspector-proxy.laugarab.workers.dev', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-allow-browser': 'true'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: MODEL, max_tokens: 1000, system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: [
@@ -889,7 +883,14 @@ async function analyzePhoto() {
   } catch (err) {
     document.getElementById('loading-indicator').style.display = 'none';
     document.getElementById('analyze-btn').disabled = false;
-    showToast('Error: ' + (err.message || 'conexión'));
+    const msg = err.message || 'Error desconocido';
+    // Show error visibly in result area
+    document.getElementById('result-text-preview').textContent = '⚠ ERROR: ' + msg + '\n\nSi el error es "Failed to fetch" o "Network error", verifica que la API key es correcta pulsando ⚙ Config arriba.';
+    document.getElementById('result-preview').style.display = 'block';
+    document.getElementById('result-preview').style.borderColor = 'var(--danger)';
+    document.querySelector('#result-preview .result-tag').textContent = 'Error';
+    document.querySelector('#result-preview .result-tag').style.background = 'var(--danger)';
+    document.getElementById('add-btn').style.display = 'none';
     console.error(err);
   }
 }
@@ -1295,10 +1296,9 @@ function showToast(msg) {
 // ─────────────────────────────────────────────────────────────────────────────
 async function init() {
   db        = await openDB();
-  apiKey    = localStorage.getItem('_cfi_ak');
   gClientId = localStorage.getItem('_cfi_gc');
 
-  if (!apiKey || !gClientId) {
+  if (!gClientId) {
     document.getElementById('setup-overlay').classList.add('open');
     return;
   }
