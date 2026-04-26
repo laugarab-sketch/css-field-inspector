@@ -129,8 +129,24 @@ html, body { background: var(--bg); color: var(--text); font-family: var(--sans)
 
 #result-preview { display: none; background: var(--surface2); border: 1px solid var(--ok); border-radius: 6px; padding: 14px; }
 .result-tag { background: var(--ok); color: var(--bg); font-family: var(--mono); font-size: 9px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 7px; border-radius: 2px; display: inline-block; margin-bottom: 10px; }
-#result-text-preview { font-family: var(--sans); font-size: 12px; color: var(--text2); line-height: 1.6; white-space: pre-wrap; }
+#result-text-preview { font-family: var(--sans); font-size: 12px; color: var(--text2); line-height: 1.6; white-space: pre-wrap; width: 100%; background: var(--surface3); border: 1px solid var(--border2); border-radius: 4px; padding: 10px; resize: vertical; min-height: 80px; margin-top: 8px; outline: none; }
+#result-text-preview:focus { border-color: var(--accent); }
 #add-btn { width: 100%; background: var(--ok); border: none; border-radius: 4px; color: var(--bg); font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; padding: 12px; cursor: pointer; margin-top: 10px; }
+
+/* ── MANUAL ENTRY ── */
+#manual-btn { width: 100%; background: none; border: 1px dashed var(--border2); border-radius: 4px; color: var(--text3); font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; padding: 11px; cursor: pointer; margin-top: 2px; }
+#manual-btn:active { border-color: var(--accent); color: var(--accent); }
+#manual-entry { display: none; background: var(--surface2); border: 1px solid var(--border2); border-radius: 6px; padding: 14px; margin-top: 2px; }
+#manual-entry.open { display: block; }
+#manual-textarea { width: 100%; background: var(--surface3); border: 1px solid var(--border2); border-radius: 4px; color: var(--text); font-family: var(--sans); font-size: 12px; line-height: 1.6; padding: 10px; resize: vertical; min-height: 100px; outline: none; }
+#manual-textarea:focus { border-color: var(--accent); }
+#manual-add-btn { width: 100%; background: var(--accent); border: none; border-radius: 4px; color: var(--bg); font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; padding: 12px; cursor: pointer; margin-top: 8px; }
+
+/* ── PHOTO LIGHTBOX ── */
+#photo-lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 600; display: none; align-items: center; justify-content: center; }
+#photo-lightbox.open { display: flex; }
+#photo-lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; }
+#lightbox-close { position: absolute; top: 16px; right: 16px; background: none; border: none; color: white; font-size: 28px; cursor: pointer; line-height: 1; padding: 4px 10px; }
 
 /* ── REPORT ── */
 #report-list  { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
@@ -344,8 +360,16 @@ input[type="file"] { display: none; }
 
         <div id="result-preview">
           <div class="result-tag">Análisis completado</div>
-          <div id="result-text-preview"></div>
+          <textarea id="result-text-preview" rows="6" spellcheck="false"></textarea>
           <button id="add-btn" onclick="addToReport()">+ Añadir al informe</button>
+        </div>
+
+        <button id="manual-btn" onclick="toggleManualEntry()">✎ Añadir manualmente</button>
+
+        <div id="manual-entry">
+          <div class="zone-label" style="margin-bottom:6px">Descripción manual</div>
+          <textarea id="manual-textarea" placeholder="Describe la deficiencia observada…" spellcheck="false"></textarea>
+          <button id="manual-add-btn" onclick="addManually()">+ Añadir al informe</button>
         </div>
 
       </div>
@@ -420,6 +444,12 @@ input[type="file"] { display: none; }
   </div>
   <a id="dp-link" target="_blank">Abrir carpeta en Drive →</a>
   <button id="dp-close" onclick="closeDriveProgress()">Listo</button>
+</div>
+
+<!-- ══ PHOTO LIGHTBOX ══ -->
+<div id="photo-lightbox" onclick="closePhoto()">
+  <button id="lightbox-close" onclick="closePhoto()">×</button>
+  <img id="lightbox-img" src="" alt="">
 </div>
 
 <!-- ══ SETUP OVERLAY ══ -->
@@ -801,7 +831,11 @@ function resetCapture() {
   document.getElementById('preview-badge').style.display = 'none';
   document.getElementById('remove-photo-btn').style.display = 'none';
   document.getElementById('result-preview').style.display = 'none';
+  document.getElementById('result-preview').style.borderColor = '';
+  document.getElementById('result-text-preview').value = '';
   document.getElementById('loading-indicator').style.display = 'none';
+  document.getElementById('manual-entry').classList.remove('open');
+  document.getElementById('manual-textarea').value = '';
   selGrav('normal');
   updBtn();
 }
@@ -902,7 +936,7 @@ async function analyzePhoto() {
     }
 
     analysis = text;
-    document.getElementById('result-text-preview').textContent = text;
+    document.getElementById('result-text-preview').value = text;
     document.getElementById('result-preview').style.display = 'block';
     document.getElementById('add-btn').style.display = 'block';
 
@@ -911,7 +945,7 @@ async function analyzePhoto() {
     document.getElementById('analyze-btn').disabled = false;
     const msg = err.message || 'Error desconocido';
     // Show error visibly in result area
-    document.getElementById('result-text-preview').textContent = '⚠ ERROR: ' + msg + '\n\nSi el error es "Failed to fetch" o "Network error", verifica que la API key es correcta pulsando ⚙ Config arriba.';
+    document.getElementById('result-text-preview').value = '⚠ ERROR: ' + msg + '\n\nSi el error es "Failed to fetch" o "Network error", verifica que la API key es correcta pulsando ⚙ Config arriba.';
     document.getElementById('result-preview').style.display = 'block';
     document.getElementById('result-preview').style.borderColor = 'var(--danger)';
     document.querySelector('#result-preview .result-tag').textContent = 'Error';
@@ -926,6 +960,9 @@ async function analyzePhoto() {
 // ─────────────────────────────────────────────────────────────────────────────
 async function addToReport() {
   const zone = document.getElementById('zone-input').value.trim();
+  // Leer el texto editado desde la textarea (puede haber sido modificado por el usuario)
+  const editedText = document.getElementById('result-text-preview').value.trim();
+  if (editedText) analysis = editedText;
   if (!analysis || !imgB64 || !zone || !visitId) return;
 
   const savedImg = await compressImage(imgB64, imgMime);
@@ -953,7 +990,11 @@ function renderReport() {
   if (!items.length) { list.innerHTML = ''; empty.style.display = 'flex'; return; }
   empty.style.display = 'none';
 
-  list.innerHTML = items.map((item, i) => `
+  list.innerHTML = items.map((item, i) => {
+    const thumbHtml = item.imageBase64
+      ? `<img class="ritem-thumb" src="data:${item.mime};base64,${item.imageBase64}" alt="" onclick="openPhoto('data:${item.mime};base64,${item.imageBase64}')" style="cursor:zoom-in">`
+      : `<div class="ritem-thumb" style="display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--text3);font-family:var(--mono)">SIN<br>FOTO</div>`;
+    return `
     <div class="ritem">
       <div class="ritem-head">
         <span class="ritem-num">DEF-${String(i+1).padStart(2,'0')}</span>
@@ -962,10 +1003,11 @@ function renderReport() {
         <button class="ritem-del" onclick="delItem(${item.id})">×</button>
       </div>
       <div class="ritem-body">
-        <img class="ritem-thumb" src="data:${item.mime};base64,${item.imageBase64}" alt="">
+        ${thumbHtml}
         <div class="ritem-text">${esc(item.analysis)}</div>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 async function delItem(id) {
@@ -1198,7 +1240,37 @@ async function buildDocx(date) {
 
   const children = [];
 
-  // Header
+  // ── Cabecera de obra ──
+  children.push(new Paragraph({ children:[new TextRun({ text:'INFORME DE COORDINACIÓN DE SEGURIDAD Y SALUD', bold:true, size:28, font:'Arial', color:'1A1A18' })], spacing:{after:120} }));
+  children.push(new Paragraph({ children:[
+    new TextRun({ text:'Obra: ', bold:true, size:20, font:'Arial' }),
+    new TextRun({ text: obraName, size:20, font:'Arial' })
+  ], spacing:{after:60} }));
+  children.push(new Paragraph({ children:[
+    new TextRun({ text:'Fecha de visita: ', bold:true, size:20, font:'Arial' }),
+    new TextRun({ text: fmtDate(date), size:20, font:'Arial' })
+  ], spacing:{after:400} }));
+
+  // ── Resumen ejecutivo ──
+  const nTotal  = items.length;
+  const nNormal = items.filter(x => x.gravedad === 'normal').length;
+  const nGrave  = items.filter(x => x.gravedad === 'grave').length;
+  const nMuyG   = items.filter(x => x.gravedad === 'muygraves').length;
+  const nParaliz= items.filter(x => x.gravedad === 'paraliz').length;
+  let resumen = `Durante la visita de inspección se han detectado ${nTotal} deficiencia${nTotal!==1?'s':''}.`;
+  const partes = [];
+  if (nNormal)  partes.push(`${nNormal} de carácter normal`);
+  if (nGrave)   partes.push(`${nGrave} grave${nGrave!==1?'s':''}`);
+  if (nMuyG)    partes.push(`${nMuyG} muy grave${nMuyG!==1?'s':''}`);
+  if (nParaliz) partes.push(`${nParaliz} con propuesta de paralización`);
+  if (partes.length) resumen += ` Clasificación: ${partes.join(', ')}.`;
+  if (nGrave || nMuyG)  resumen += ' Se insta a la contrata a subsanar con carácter urgente las deficiencias graves y muy graves identificadas.';
+  if (nParaliz) resumen += ' Se propone la paralización de los trabajos afectados hasta su corrección y verificación por parte de la coordinación.';
+
+  children.push(new Paragraph({ children:[new TextRun({ text:'RESUMEN EJECUTIVO', bold:true, size:20, font:'Arial' })], spacing:{after:100} }));
+  children.push(new Paragraph({ children:[new TextRun({ text: resumen, size:20, font:'Arial' })], spacing:{after:400} }));
+
+  // ── Cuerpo de deficiencias ──
   children.push(new Paragraph({ children:[new TextRun({ text:'1.', bold:true, size:24, font:'Arial' })], spacing:{after:0} }));
   children.push(new Paragraph({ children:[new TextRun({ text:'OBSERVACIONES DURANTE LA VISITA', bold:true, size:24, font:'Arial' })], spacing:{after:200} }));
   children.push(new Paragraph({ children:[new TextRun({ text:'- DEFICIENCIAS OBSERVADAS DURANTE LA VISITA', bold:true, italics:true, size:22, font:'Arial' })], spacing:{after:300} }));
@@ -1353,6 +1425,57 @@ function imgDims(b64, mime) {
     img.onerror = () => res({ w: 1000, h: 750 });
     img.src = `data:${mime};base64,${b64}`;
   });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MANUAL ENTRY
+// ─────────────────────────────────────────────────────────────────────────────
+function toggleManualEntry() {
+  const el = document.getElementById('manual-entry');
+  el.classList.toggle('open');
+  if (el.classList.contains('open')) document.getElementById('manual-textarea').focus();
+}
+
+async function addManually() {
+  const zone = document.getElementById('zone-input').value.trim();
+  const text = document.getElementById('manual-textarea').value.trim();
+  if (!text || !zone || !visitId) {
+    showToast('Indica ubicación y descripción');
+    return;
+  }
+  // Necesita foto — si no hay, crear ítem sin imagen (pixel transparente)
+  const src = imgB64 || null;
+  const mime = imgB64 ? imgMime : 'image/jpeg';
+  const savedImg = src ? await compressImage(src, mime) : null;
+
+  const item = {
+    visitId, zone, analysis: text, gravedad: gravity,
+    imageBase64: savedImg, mime: savedImg ? 'image/jpeg' : null,
+    manual: true, createdAt: new Date().toISOString()
+  };
+  const id = await dbAdd('items', item);
+  item.id = id;
+  items.push(item);
+
+  document.getElementById('header-count').textContent = items.length;
+  document.getElementById('manual-textarea').value = '';
+  document.getElementById('manual-entry').classList.remove('open');
+  showToast('✓ Observación guardada');
+  resetCapture();
+  renderReport();
+  updateExportBar();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHOTO LIGHTBOX
+// ─────────────────────────────────────────────────────────────────────────────
+function openPhoto(src) {
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('photo-lightbox').classList.add('open');
+}
+function closePhoto() {
+  document.getElementById('photo-lightbox').classList.remove('open');
+  document.getElementById('lightbox-img').src = '';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
