@@ -663,17 +663,17 @@ function saveSetup() {
 // ─────────────────────────────────────────────────────────────────────────────
 // GOOGLE AUTH
 // ─────────────────────────────────────────────────────────────────────────────
+// Respuesta pendiente de Google (éxito o error). Un solo despachador para callback y error_callback:
+// sin error_callback, si la ventana se bloquea o se cierra, la promesa no terminaba nunca («enganchado»).
+let gEspera = null;
+
 function initGAuth() {
   if (!gClientId || !window.google?.accounts?.oauth2) return;
   gTokenClient = google.accounts.oauth2.initTokenClient({
     client_id: gClientId,
     scope: 'https://www.googleapis.com/auth/drive.file',
-    callback: r => {
-      if (!r.error) {
-        gToken = r.access_token;
-        gTokenExpiry = Date.now() + ((r.expires_in || 3600) * 1000) - 60000; // 1 min de margen
-      }
-    }
+    callback: r => gEspera?.(r),
+    error_callback: e => gEspera?.({ error: e.type }) // popup_closed, popup_failed_to_open…
   });
 }
 
@@ -681,16 +681,22 @@ function ensureToken() {
   return new Promise((res, rej) => {
     if (gToken && Date.now() < gTokenExpiry) { res(gToken); return; }
     gToken = null; // token expirado — pedir uno nuevo
-    if (!gTokenClient) { rej(new Error('Google Auth no inicializado')); return; }
-    const orig = gTokenClient.callback;
-    gTokenClient.callback = r => {
-      gTokenClient.callback = orig;
-      if (r.error) { rej(new Error(r.error)); return; }
+    if (!gTokenClient) initGAuth();
+    if (!gTokenClient) { rej(new Error('No se ha podido cargar el acceso de Google (¿sin conexión?)')); return; }
+    gEspera = r => {
+      gEspera = null;
+      if (r.error) {
+        const m = { popup_closed: 'Se cerró la ventana de Google.', popup_failed_to_open: 'El navegador bloqueó la ventana de Google.' }[r.error];
+        rej(new Error(m || 'Google: ' + (r.error_description || r.error)));
+        return;
+      }
       gToken = r.access_token;
-      gTokenExpiry = Date.now() + ((r.expires_in || 3600) * 1000) - 60000;
+      gTokenExpiry = Date.now() + ((r.expires_in || 3600) * 1000) - 60000; // 1 min de margen
       res(gToken);
     };
-    gTokenClient.requestAccessToken({ prompt: 'none' });
+    // prompt '' (no 'none'): Google muestra la pantalla de cuenta/permiso SOLO si hace falta.
+    // Con 'none' fallaba siempre en un navegador o app instalada sin permiso previo.
+    gTokenClient.requestAccessToken({ prompt: '' });
   });
 }
 

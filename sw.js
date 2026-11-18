@@ -3,7 +3,7 @@
 // Estrategia: cache-first para assets estáticos, network-only para APIs
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CACHE_NAME    = 'css-field-inspector-v2'; // v2 (18/11/2026): código de acceso al proxy
+const CACHE_NAME    = 'css-field-inspector-v3'; // v3 (18/11/2026): conexión con Google sin bloqueos
 const STATIC_ASSETS = [
   './css_field_inspector_v3.html',
   './docx.iife.js',
