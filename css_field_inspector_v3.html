@@ -493,6 +493,13 @@ input[type="file"] { display: none; }
            placeholder="xxxxx.apps.googleusercontent.com" autocomplete="off" oninput="checkSetup()">
   </div>
 
+  <div class="sf">
+    <div class="sf-label">Código de acceso a la IA</div>
+    <div class="sf-hint">El que está guardado como secreto CODIGO_ACCESO en el proxy de Cloudflare. Sin él, el análisis con IA no funciona.</div>
+    <input class="sf-input" id="setup-codigo" type="password"
+           placeholder="Código de acceso" autocomplete="off" spellcheck="false" oninput="checkSetup()">
+  </div>
+
   <button id="setup-save" onclick="saveSetup()" disabled>Guardar y empezar</button>
 
   <div class="setup-note">
@@ -627,21 +634,26 @@ const dbDel = (store, id) => new Promise((res, rej) => {
 function resetConfig() {
   localStorage.removeItem('_cfi_ak');
   localStorage.removeItem('_cfi_gc');
+  localStorage.removeItem('_cfi_codigo');
   gToken = null; gTokenExpiry = 0;
   document.getElementById('setup-clientid').value = '';
+  document.getElementById('setup-codigo').value = '';
   document.getElementById('setup-save').disabled = true;
   document.getElementById('setup-overlay').classList.add('open');
 }
 
 function checkSetup() {
   const c = document.getElementById('setup-clientid').value.trim();
-  document.getElementById('setup-save').disabled = !c;
+  const k = document.getElementById('setup-codigo').value.trim();
+  document.getElementById('setup-save').disabled = !c || !k;
 }
 
 function saveSetup() {
   const c = document.getElementById('setup-clientid').value.trim();
-  if (!c) return;
+  const k = document.getElementById('setup-codigo').value.trim();
+  if (!c || !k) return;
   localStorage.setItem('_cfi_gc', c);
+  localStorage.setItem('_cfi_codigo', k); // código del proxy: solo en este dispositivo
   gClientId = c;
   document.getElementById('setup-overlay').classList.remove('open');
   initGAuth();
@@ -954,7 +966,7 @@ async function analyzePhoto() {
 
     const r = await fetch('https://css-inspector-proxy.laugarab.workers.dev', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Codigo-Acceso': localStorage.getItem('_cfi_codigo') || '' },
       body: JSON.stringify({
         model: MODEL, max_tokens: 1000, system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: [
@@ -965,6 +977,11 @@ async function analyzePhoto() {
     });
 
     const data = await r.json();
+    // Un error (del proxy o de la API) NO puede confundirse con «Sin deficiencias»
+    if (!r.ok || data.type === 'error') {
+      const m = data.error?.message || ('HTTP ' + r.status);
+      throw new Error(r.status === 401 ? 'Código de acceso incorrecto: revísalo en ⚙ Config.' : m);
+    }
     const text = data.content?.find(b => b.type === 'text')?.text || '';
     document.getElementById('loading-indicator').style.display = 'none';
 
@@ -1547,7 +1564,10 @@ async function init() {
   db        = await openDB();
   gClientId = localStorage.getItem('_cfi_gc');
 
-  if (!gClientId) {
+  // Falta el Client ID o (desde 18/11/2026) el código de acceso del proxy → configuración
+  if (!gClientId || !localStorage.getItem('_cfi_codigo')) {
+    document.getElementById('setup-clientid').value = gClientId || '';
+    checkSetup();
     document.getElementById('setup-overlay').classList.add('open');
     return;
   }
